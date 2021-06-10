@@ -17,4 +17,5 @@ gradle/
 gradlew*
 
 # Local configuration file (sdk path, etc)
+starter/local.properties
 local.properties
