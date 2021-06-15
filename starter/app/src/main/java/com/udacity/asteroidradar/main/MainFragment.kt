@@ -1,42 +1,51 @@
 package com.udacity.asteroidradar.main
 
 import android.os.Bundle
-import android.util.Log
 import android.view.*
-import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import com.squareup.picasso.Picasso
+import com.udacity.asteroidradar.Constants
 import com.udacity.asteroidradar.R
 import com.udacity.asteroidradar.databinding.FragmentMainBinding
 
 class MainFragment : Fragment() {
 
-    private val viewModel: MainViewModel by lazy {
-        ViewModelProvider(this).get(MainViewModel::class.java)
-    }
-
+    lateinit var viewModel: MainViewModel
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+
+        val viewModelFactory = MainViewModelFactory(
+            application = requireNotNull(this.activity).application
+        )
+        viewModel = ViewModelProvider(this, viewModelFactory).get(MainViewModel::class.java)
+
         val binding = FragmentMainBinding.inflate(inflater)
         binding.lifecycleOwner = this
 
         binding.viewModel = viewModel
 
-        val adapter = AsteroidAdapter(AsteroidListener { id ->
-            // TODO. Detail 화면으로
-            Toast.makeText(context, "TODO: to Detail", Toast.LENGTH_SHORT).show()
+        val adapter = AsteroidAdapter(AsteroidListener { asteroid ->
+            findNavController().navigate(MainFragmentDirections.actionShowDetail(asteroid))
         })
         binding.asteroidRecycler.adapter = adapter
-        viewModel.asteroidProperties.observe(requireActivity(), Observer { asteroid ->
+        viewModel.asteroid.observe(requireActivity(), Observer { asteroid ->
             adapter.data = asteroid
         })
-        viewModel.imageUrl.observe(requireActivity(), Observer { url ->
-            Picasso.with(context).load(url).into(binding.activityMainImageOfTheDay)
+        viewModel.imageProperty.observe(requireActivity(), Observer { property ->
+            if(property.mediaType == Constants.IMAGE_TYPE) {
+                binding.activityMainImageOfTheDay.let { imageView ->
+                    Picasso.with(context).load(property.imageUrl).into(imageView)
+                    imageView.contentDescription = property.title
+                }
+                binding.activityMainImageOfTheDayLayout.visibility = View.VISIBLE
+            } else {
+                binding.activityMainImageOfTheDayLayout.visibility = View.GONE
+            }
         })
 
         setHasOptionsMenu(true)
@@ -50,6 +59,11 @@ class MainFragment : Fragment() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when(item.itemId) {
+            R.id.week -> viewModel.fetchAsteroids(Constants.RangeEndDate.WEEK_END_DATE_DAYS)
+            R.id.day -> viewModel.fetchAsteroids(Constants.RangeEndDate.TODAY_END_DATE_DAYS)
+            R.id.database -> viewModel.fetchAsFromDatabase()
+        }
         return true
     }
 }

@@ -1,49 +1,54 @@
 package com.udacity.asteroidradar.main
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import com.udacity.asteroidradar.Asteroid
 import com.udacity.asteroidradar.Constants
-import com.udacity.asteroidradar.DateUtils
+import com.udacity.asteroidradar.R
+import com.udacity.asteroidradar.api.ApodProperty
 import com.udacity.asteroidradar.api.NasaApi
-import com.udacity.asteroidradar.api.parseAsteroidsJsonResult
+import com.udacity.asteroidradar.database.AsteroidDatabase
+import com.udacity.asteroidradar.repository.AsteroidRepository
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import java.lang.Exception
-import java.util.*
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val service = NasaApi.retrofitService
-    private val _asteroidProperties = MutableLiveData<List<Asteroid>>()
+    private val asteroidRepository = AsteroidRepository(
+        AsteroidDatabase.getInstance(application).asteroidDao,
+        NasaApi.retrofitService,
+        application.getString(R.string.nasa_api_key)
+    )
+    private val _asteroids = MutableLiveData<List<Asteroid>>()
 
-    val asteroidProperties: LiveData<List<Asteroid>>
-        get() = _asteroidProperties
+    val asteroid: LiveData<List<Asteroid>>
+        get() = _asteroids
 
-    private val _imageUrl = MutableLiveData<String>()
-    val imageUrl: LiveData<String>
-        get() = _imageUrl
+    private val _imageProperty = MutableLiveData<ApodProperty>()
+    val imageProperty: LiveData<ApodProperty>
+        get() = _imageProperty
 
     init {
-        fetchFeed()
         fetchImage()
+        fetchAsteroids(Constants.RangeEndDate.WEEK_END_DATE_DAYS)
     }
 
-    private fun fetchFeed() {
+    fun fetchAsteroids(endDate: Constants.RangeEndDate) {
         viewModelScope.launch {
             try {
-                val calendar = Calendar.getInstance()
-                calendar.add(Calendar.DAY_OF_YEAR, Constants.DEFAULT_END_DATE_DAYS)
-                val result = service.getFeed(
-                    startDate = DateUtils.getFormattedDate(Date()),
-                    endDate = DateUtils.getFormattedDate(calendar.time),
-                    apiKey = Constants.API_KEY
-                )
-                _asteroidProperties.value = parseAsteroidsJsonResult(JSONObject(result))
+                _asteroids.value = asteroidRepository.fetchAsteroids(endDate)
+            } catch (e: Exception) {
+                Log.e(TAG, e.toString())
+                fetchAsFromDatabase()
+            }
+        }
+    }
 
+    fun fetchAsFromDatabase() {
+        viewModelScope.launch {
+            try {
+                _asteroids.value = asteroidRepository.getAsteroidsFromDao()
             } catch (e: Exception) {
                 Log.e(TAG, e.toString())
             }
@@ -53,13 +58,11 @@ class MainViewModel : ViewModel() {
     private fun fetchImage() {
         viewModelScope.launch {
             try {
-                val result = service.getPlanetaryApod(Constants.API_KEY)
-                _imageUrl.value = result.imageUrl
+                _imageProperty.value = asteroidRepository.getPlanetaryApod()
             } catch (e: Exception) {
                 Log.e(TAG, e.toString())
             }
         }
-
     }
 
     companion object {

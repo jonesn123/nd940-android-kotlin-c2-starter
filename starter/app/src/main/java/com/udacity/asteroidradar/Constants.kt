@@ -2,7 +2,12 @@ package com.udacity.asteroidradar
 
 object Constants {
     const val API_QUERY_DATE_FORMAT = "YYYY-MM-dd"
-    const val DEFAULT_END_DATE_DAYS = 7
     const val BASE_URL = "https://api.nasa.gov/"
-    const val API_KEY = "RqzQ6gbgGVEKBt1XtY3BLyF6qdKFtPxV7L1OBito"
+    const val IMAGE_TYPE = "image"
+    const val VIDEO_TYPE = "video"
+
+    enum class RangeEndDate(val days: Int) {
+        TODAY_END_DATE_DAYS(1),
+        WEEK_END_DATE_DAYS(7)
+    }
 }
